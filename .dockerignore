@@ -1,0 +1,72 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Dependencies (will be installed in container)
+node_modules/
+frontend/node_modules/
+
+# Build outputs (will be built in container)
+dist/
+frontend/build/
+
+# Development files
+*.log
+logs/
+*.md
+README.md
+LICENSE
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+coverage/
+.nyc_output/
+*.test.ts
+*.spec.ts
+__tests__/
+test/
+tests/
+
+# Environment files (secrets should come from environment variables)
+.env
+.env.local
+.env.*.local
+
+# Vault data (should be mounted as volume, not included in image)
+.vault/
+data/
+*.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+cache/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Docker files (don't need to copy into container)
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# TypeScript source maps (not needed in production image)
+*.ts.map

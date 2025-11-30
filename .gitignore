@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vault data (sensitive!)
+.vault/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# npm
+# package-lock.json - раскомментируйте для игнорирования (но это сломает Docker сборку с npm ci)
+
+# Test files
+test-*.js
+
+# Environment variables (contain secrets!)
+.env
+.env.local
+.env.*.local
