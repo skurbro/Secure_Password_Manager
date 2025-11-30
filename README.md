@@ -2,6 +2,10 @@
 Modern, encrypted, self-hosted password manager with a beautiful animated Web UI and a fully compatible CLI interface.  
 All data is encrypted locally using AES-256-GCM, with Argon2id master-password hashing, strong session security, CSRF protection, and encrypted SQLite storage.
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=skurbro_Secure_Password_Manager&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=skurbro_Secure_Password_Manager)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=skurbro_Secure_Password_Manager&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=skurbro_Secure_Password_Manager)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=skurbro_Secure_Password_Manager&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=skurbro_Secure_Password_Manager)
+
 ---
 
 # Key Features
