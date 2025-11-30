@@ -1,0 +1,36 @@
+services:
+  password_manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secure-password-manager
+    ports:
+      - "8080:3000"  
+    env_file:
+      - .env 
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      
+      # Frontend URL (for CORS)
+      FRONTEND_URL: http://localhost:8080
+ 
+      DB_PATH: "/app/.vault/vault.db"
+      
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_TO_CONSOLE: "true"
+    
+    volumes:
+      - ./data/vault:/app/.vault
+      - ./data/logs:/app/logs
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    

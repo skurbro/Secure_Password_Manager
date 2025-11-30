@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
+  <title>SecureVault - Password Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen active">
+      <div class="loading-content">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h1 class="logo-text">SecureVault</h1>
+        </div>
+        <div class="loading-spinner"></div>
+        <p class="loading-message">Initializing security modules...</p>
+      </div>
+    </div>
+
+    <!-- Setup Screen (First Time) -->
+    <div id="setup-screen" class="screen">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="logo-icon small">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h1>Create Your Vault</h1>
+          <p>Set a strong master password to protect your credentials</p>
+        </div>
+        
+        <form id="setup-form" class="auth-form">
+          <div class="input-group">
+            <label for="setup-password">Master Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="setup-password" placeholder="Enter master password" required>
+              <button type="button" class="toggle-password" data-target="setup-password">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="password-strength">
+              <div class="strength-bar"></div>
+              <span class="strength-text">Enter a password</span>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="setup-confirm">Confirm Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="setup-confirm" placeholder="Confirm master password" required>
+              <button type="button" class="toggle-password" data-target="setup-confirm">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="password-requirements">
+            <h4>Password Requirements:</h4>
+            <ul>
+              <li id="req-length" class="requirement">
+                <span class="check-icon">✓</span>
+                At least 12 characters
+              </li>
+              <li id="req-upper" class="requirement">
+                <span class="check-icon">✓</span>
+                One uppercase letter
+              </li>
+              <li id="req-lower" class="requirement">
+                <span class="check-icon">✓</span>
+                One lowercase letter
+              </li>
+              <li id="req-number" class="requirement">
+                <span class="check-icon">✓</span>
+                One number
+              </li>
+              <li id="req-symbol" class="requirement">
+                <span class="check-icon">✓</span>
+                One special character
+              </li>
+            </ul>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" id="setup-btn">
+            <span>Create Vault</span>
+            <div class="btn-spinner"></div>
+          </button>
+        </form>
+        
+        <div id="setup-error" class="error-message"></div>
+      </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="logo-icon small">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h1>Unlock Vault</h1>
+          <p>Enter your master password to access your credentials</p>
+        </div>
+        
+        <form id="login-form" class="auth-form">
+          <div class="input-group">
+            <label for="login-password">Master Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="login-password" placeholder="Enter master password" required autofocus>
+              <button type="button" class="toggle-password" data-target="login-password">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" id="login-btn">
+            <span>Unlock</span>
+            <div class="btn-spinner"></div>
+          </button>
+        </form>
+        
+        <div id="login-error" class="error-message"></div>
+      </div>
+    </div>
+
+    <!-- Main Vault Screen -->
+    <div id="vault-screen" class="screen">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-small">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>SecureVault</span>
+          </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-view="all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span>All Items</span>
+            <span class="count" id="all-count">0</span>
+          </button>
+          
+          <button class="nav-item" data-view="favorites">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span>Favorites</span>
+          </button>
+        </nav>
+        
+        <div class="sidebar-section">
+          <h3>Categories</h3>
+          <div id="categories-list" class="categories-nav"></div>
+        </div>
+        
+        <div class="sidebar-footer">
+          <button class="nav-item" id="generate-password-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            <span>Password Generator</span>
+          </button>
+          
+          <button class="nav-item danger" id="lock-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Lock Vault</span>
+          </button>
+        </div>
+      </aside>
+      
+      <main class="main-content">
+        <header class="main-header">
+          <div class="search-container">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="search-input" placeholder="Search credentials...">
+          </div>
+          
+          <button class="btn btn-primary" id="add-credential-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Add New</span>
+          </button>
+        </header>
+        
+        <div class="credentials-container">
+          <div class="credentials-header">
+            <h2 id="view-title">All Items</h2>
+            <span class="credential-count" id="credential-count">0 items</span>
+          </div>
+          
+          <div id="credentials-list" class="credentials-list">
+            <!-- Credentials will be rendered here -->
+          </div>
+          
+          <div id="empty-state" class="empty-state hidden">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <h3>No credentials yet</h3>
+            <p>Add your first credential to get started</p>
+            <button class="btn btn-primary" id="add-first-btn">Add Credential</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Credential Modal -->
+    <div id="credential-modal" class="modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">Add Credential</h2>
+          <button class="modal-close" id="modal-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <form id="credential-form" class="credential-form">
+          <input type="hidden" id="credential-id">
+          
+          <div class="form-row">
+            <div class="input-group">
+              <label for="cred-title">Title *</label>
+              <input type="text" id="cred-title" placeholder="e.g., GitHub" required>
+            </div>
+            
+            <div class="input-group">
+              <label for="cred-category">Category</label>
+              <input type="text" id="cred-category" placeholder="e.g., Work" list="category-suggestions">
+              <datalist id="category-suggestions"></datalist>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="cred-url">URL</label>
+            <input type="text" id="cred-url" placeholder="https://example.com">
+          </div>
+          
+          <div class="input-group">
+            <label for="cred-username">Username *</label>
+            <input type="text" id="cred-username" placeholder="Username or email" required>
+          </div>
+          
+          <div class="input-group">
+            <label for="cred-password">Password *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="cred-password" placeholder="Enter password" required>
+              <button type="button" class="toggle-password" data-target="cred-password">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+              <button type="button" class="generate-btn" id="generate-cred-password">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="cred-notes">Notes</label>
+            <textarea id="cred-notes" placeholder="Additional notes..." rows="3"></textarea>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="modal-save">
+              <span>Save</span>
+              <div class="btn-spinner"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- View Credential Modal -->
+    <div id="view-modal" class="modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content view-modal-content">
+        <div class="modal-header">
+          <h2 id="view-modal-title">Credential Details</h2>
+          <button class="modal-close" id="view-modal-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="view-credential">
+          <div class="view-field">
+            <label>Title</label>
+            <span id="view-title-value"></span>
+          </div>
+          
+          <div class="view-field">
+            <label>URL</label>
+            <span id="view-url-value"></span>
+          </div>
+          
+          <div class="view-field">
+            <label>Username</label>
+            <div class="copy-field">
+              <span id="view-username-value"></span>
+              <button class="copy-btn" data-copy="username">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="view-field">
+            <label>Password</label>
+            <div class="copy-field password-field">
+              <span id="view-password-value" class="password-hidden">••••••••••••</span>
+              <div class="password-actions">
+                <button class="show-password-btn" id="show-password-btn">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <span>View (5s)</span>
+                </button>
+                <button class="copy-btn" data-copy="password">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="view-field">
+            <label>Category</label>
+            <span id="view-category-value"></span>
+          </div>
+          
+          <div class="view-field">
+            <label>Notes</label>
+            <span id="view-notes-value" class="notes-text"></span>
+          </div>
+          
+          <div class="view-field meta">
+            <span>Created: <span id="view-created-value"></span></span>
+            <span>Updated: <span id="view-updated-value"></span></span>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn btn-danger" id="view-delete-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Delete</span>
+          </button>
+          <button class="btn btn-secondary" id="view-edit-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>Edit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Generator Modal -->
+    <div id="generator-modal" class="modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content generator-modal-content">
+        <div class="modal-header">
+          <h2>Password Generator</h2>
+          <button class="modal-close" id="generator-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="generator-content">
+          <div class="generated-password">
+            <input type="text" id="generated-password" readonly>
+            <button class="copy-btn" id="copy-generated">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="generator-options">
+            <div class="option-row">
+              <label for="password-length">Length: <span id="length-value">16</span></label>
+              <input type="range" id="password-length" min="8" max="64" value="16">
+            </div>
+            
+            <div class="option-row checkbox">
+              <label>
+                <input type="checkbox" id="include-upper" checked>
+                <span class="checkbox-custom"></span>
+                Uppercase (A-Z)
+              </label>
+            </div>
+            
+            <div class="option-row checkbox">
+              <label>
+                <input type="checkbox" id="include-lower" checked>
+                <span class="checkbox-custom"></span>
+                Lowercase (a-z)
+              </label>
+            </div>
+            
+            <div class="option-row checkbox">
+              <label>
+                <input type="checkbox" id="include-numbers" checked>
+                <span class="checkbox-custom"></span>
+                Numbers (0-9)
+              </label>
+            </div>
+            
+            <div class="option-row checkbox">
+              <label>
+                <input type="checkbox" id="include-symbols" checked>
+                <span class="checkbox-custom"></span>
+                Symbols (!@#$%...)
+              </label>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary btn-block" id="regenerate-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            <span>Regenerate</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
