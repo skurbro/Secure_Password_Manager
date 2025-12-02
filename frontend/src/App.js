@@ -215,7 +215,7 @@ function AuthScreen({ onAuth, isInitialized }) {
     { text: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
     { text: 'Contains lowercase letter', met: /[a-z]/.test(password) },
     { text: 'Contains number', met: /\d/.test(password) },
-    { text: 'Contains special character', met: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password) },
+    { text: 'Contains special character', met: /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password) },
   ];
 
   const passwordValid = requirements.every(r => r.met);
@@ -300,8 +300,8 @@ function AuthScreen({ onAuth, isInitialized }) {
               <div className="password-requirements">
                 <h4>Password Requirements</h4>
                 <ul>
-                  {requirements.map((req, i) => (
-                    <li key={i} className={req.met ? 'met' : ''}>
+                  {requirements.map((req) => (
+                    <li key={req.text} className={req.met ? 'met' : ''}>
                       <span className="icon">{req.met ? '✓' : '○'}</span>
                       {req.text}
                     </li>
@@ -334,6 +334,10 @@ function AuthScreen({ onAuth, isInitialized }) {
     </div>
   );
 }
+AuthScreen.propTypes = {
+  onAuth: PropTypes.func.isRequired,
+  isInitialized: PropTypes.bool.isRequired,
+};
 
 function CredentialModal({ credential, onSave, onClose }) {
   const isEdit = !!credential;
@@ -507,6 +511,19 @@ function CredentialModal({ credential, onSave, onClose }) {
     </div>
   );
 }
+CredentialModal.propTypes = {
+  credential: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    title: PropTypes.string,
+    username: PropTypes.string,
+    password: PropTypes.string,
+    url: PropTypes.string,
+    category: PropTypes.string,
+    notes: PropTypes.string,
+  }),
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
 
 function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -680,6 +697,21 @@ function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast 
     </div>
   );
 }
+ViewCredentialModal.propTypes = {
+  credential: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    title: PropTypes.string.isRequired,
+    username: PropTypes.string.isRequired,
+    url: PropTypes.string,
+    category: PropTypes.string,
+    notes: PropTypes.string,
+    updatedAt: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]).isRequired,
+  }).isRequired,
+  onClose: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  showToast: PropTypes.func.isRequired,
+};
 
 function Dashboard({ onLogout }) {
   const [credentials, setCredentials] = useState([]);
@@ -884,6 +916,9 @@ function Dashboard({ onLogout }) {
     </div>
   );
 }
+Dashboard.propTypes = {
+  onLogout: PropTypes.func.isRequired,
+};
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
