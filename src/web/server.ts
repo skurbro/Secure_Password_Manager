@@ -54,6 +54,7 @@ app.use(cookieParser());
 
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_TIMEOUT = 60 * 60 * 1000;
+const useSecureCookie = process.env.SECURE_COOKIE === 'true' || (isProduction && process.env.FRONTEND_URL?.startsWith('https://'));
 app.use(session({
   name: 'spm_session',
   secret: sessionSecret,
@@ -61,8 +62,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     httpOnly: true, 
-    secure: false,
-    sameSite: 'lax' as const,
+    secure: useSecureCookie,
+    sameSite: isProduction ? ('strict' as const) : ('lax' as const),
     path: '/',
     maxAge: SESSION_TIMEOUT,
   },
