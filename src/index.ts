@@ -527,30 +527,6 @@ async function handleLock(): Promise<void> {
   await waitForKey();
 }
 
-function selectCredentialByChoice(choice: string, credentials: Array<{ id: string; title: string; username: string }>): string | null {
-  const num = parseInt(choice);
-  if (num > 0 && num <= credentials.length) {
-    return credentials[num - 1].id;
-  }
-  return choice || null;
-}
-
-async function promptCredentialSelection(credentials: Array<{ id: string; title: string; username: string }>): Promise<string | null> {
-  if (credentials.length === 0) {
-    info('No saved passwords.');
-    await waitForKey();
-    return null;
-  }
-
-  credentials.forEach((cred, index) => {
-    console.log(`  ${colors.cyan}${index + 1}.${colors.reset} ${cred.title} (${cred.username})`);
-  });
-
-  console.log();
-  const choice = await prompt('  Enter number (or ID): ');
-  return selectCredentialByChoice(choice, credentials);
-}
-
 const UNLOCKED_MENU_HANDLERS: Record<string, () => Promise<void>> = {
   '1': handleAdd,
   '2': handleList,
