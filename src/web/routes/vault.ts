@@ -6,6 +6,44 @@ import { logSecurityEvent, SecurityEvent, Outcome } from '../../core/logger';
 
 const router = Router();
 
+router.post('/generate-password', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (process.env.DEBUG_CSRF === '1' || process.env.DEBUG_AUTH === '1') {
+      const clientToken = (req.headers['x-csrf-token'] || req.headers['X-CSRF-Token']) as string | undefined;
+      const clientShort = clientToken ? `${clientToken.slice(0,8)}...${clientToken.slice(-8)}` : 'none';
+      console.log(`[VAULT DEBUG] generate-password user=${req.userId} session=${req.sessionID} isAuth=${req.session?.isAuthenticated} clientToken=${clientShort}`);
+    }
+    const length = Math.min(Math.max(parseInt(req.body.length) || 16, 8), 128);
+
+    const options = {
+      includeUppercase: req.body.uppercase !== false,
+      includeLowercase: req.body.lowercase !== false,
+      includeNumbers: req.body.numbers !== false,
+      includeSymbols: req.body.symbols !== false,
+    };
+
+    const password = generatePassword(length, options);
+
+    logSecurityEvent({
+      event: SecurityEvent.PASSWORD_GENERATED,
+      userId: req.userId!,
+      sessionId: req.sessionID,
+      outcome: Outcome.SUCCESS,
+      message: 'Password generated via web',
+    });
+
+    res.json({
+      success: true,
+      data: { password, length },
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to generate password',
+      message: 'An unexpected error occurred',
+    });
+  }
+});
+
 router.use(requireAuth);
 
 type FieldSchema = {
@@ -321,44 +359,6 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   } catch (error) {
     res.status(500).json({
       error: 'Failed to delete credential',
-      message: 'An unexpected error occurred',
-    });
-  }
-});
-
-router.post('/generate-password', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (process.env.DEBUG_CSRF === '1') {
-      const clientToken = (req.headers['x-csrf-token'] || req.headers['X-CSRF-Token']) as string | undefined;
-      const clientShort = clientToken ? `${clientToken.slice(0,8)}...${clientToken.slice(-8)}` : 'none';
-      console.log(`[VAULT DEBUG] generate-password user=${req.userId} session=${req.sessionID} clientToken=${clientShort}`);
-    }
-    const length = Math.min(Math.max(parseInt(req.body.length) || 16, 8), 128);
-
-    const options = {
-      includeUppercase: req.body.uppercase !== false,
-      includeLowercase: req.body.lowercase !== false,
-      includeNumbers: req.body.numbers !== false,
-      includeSymbols: req.body.symbols !== false,
-    };
-
-    const password = generatePassword(length, options);
-
-    logSecurityEvent({
-      event: SecurityEvent.PASSWORD_GENERATED,
-      userId: req.userId!,
-      sessionId: req.sessionID,
-      outcome: Outcome.SUCCESS,
-      message: 'Password generated via web',
-    });
-
-    res.json({
-      success: true,
-      data: { password, length },
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to generate password',
       message: 'An unexpected error occurred',
     });
   }

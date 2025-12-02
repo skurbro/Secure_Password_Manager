@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { logSecurityEvent, SecurityEvent, Outcome } from '../../core/logger';
 
-const SESSION_TIMEOUT = 15 * 60 * 1000;
+const SESSION_TIMEOUT = 60 * 60 * 1000;
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -15,7 +15,15 @@ export function requireAuth(
   next: NextFunction
 ): void {
   res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (process.env.DEBUG_AUTH === '1') {
+    console.log(`[AUTH DEBUG] requireAuth: path=${req.path} sessionID=${req.sessionID} hasSession=${!!req.session} isAuth=${req.session?.isAuthenticated} userId=${req.session?.userId} cookie=${req.headers.cookie ? 'present' : 'missing'}`);
+  }
+  
   if (!req.session || !req.session.isAuthenticated) {
+    if (process.env.DEBUG_AUTH === '1') {
+      console.log(`[AUTH DEBUG] Unauthenticated access: path=${req.path} sessionID=${req.sessionID} hasSession=${!!req.session} isAuth=${req.session?.isAuthenticated}`);
+    }
     logSecurityEvent({
       event: SecurityEvent.ACCESS_DENIED,
       userId: 'anonymous',
@@ -37,7 +45,13 @@ export function requireAuth(
   }
 
   const sessionAge = Date.now() - (req.session.createdAt || 0);
+  if (process.env.DEBUG_AUTH === '1') {
+    console.log(`[AUTH DEBUG] Session age check: age=${sessionAge}ms timeout=${SESSION_TIMEOUT}ms expired=${sessionAge > SESSION_TIMEOUT}`);
+  }
   if (sessionAge > SESSION_TIMEOUT) {
+    if (process.env.DEBUG_AUTH === '1') {
+      console.log(`[AUTH DEBUG] Session expired: age=${sessionAge}ms timeout=${SESSION_TIMEOUT}ms`);
+    }
     req.session.destroy((err) => {
       if (err) {
         console.error('Session destroy error:', err);

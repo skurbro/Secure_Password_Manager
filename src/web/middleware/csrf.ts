@@ -36,10 +36,10 @@ export function verifySignedCsrfToken(token: string): boolean {
 }
 
 const EXEMPT_METHODS = ['GET', 'HEAD', 'OPTIONS'];
-const EXEMPT_PATHS = ['/api/vault/generate-password'];
+const EXEMPT_PATHS = ['/generate-password', '/api/vault/generate-password'];
 
 function shouldIgnorePath(path: string): boolean {
-  return EXEMPT_PATHS.includes(path);
+  return EXEMPT_PATHS.includes(path) || path.endsWith('/generate-password');
 }
 
 function shouldIgnoreMethod(method: string): boolean {

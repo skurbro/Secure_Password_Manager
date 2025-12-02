@@ -46,6 +46,23 @@ async function executeWithRetry(url, options, headers) {
   return retryResponse.ok ? retryData : null;
 }
 
+async function executeWithAuthRetry(url, options, headers) {
+  try {
+    const statusResp = await fetch(`${API_BASE}/auth/status`, { credentials: 'include' });
+    const statusData = await statusResp.json().catch(() => null);
+    if (statusData && statusData.csrfToken) {
+      csrfToken = statusData.csrfToken;
+    }
+    const retryHeaders = { ...headers, 'X-CSRF-Token': csrfToken };
+    const retryResponse = await fetch(url, { ...options, headers: retryHeaders, credentials: 'include' });
+    const retryData = await retryResponse.json().catch(() => null);
+    if (retryData) updateTokenFromResponse(retryData);
+    return retryResponse.ok ? retryData : null;
+  } catch {
+    return null;
+  }
+}
+
 async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
   
@@ -70,6 +87,10 @@ async function apiRequest(endpoint, options = {}) {
       if (retryData) {
         return retryData;
       }
+    }
+    if (response.status === 401) {
+      const retryData = await executeWithAuthRetry(url, options, headers);
+      if (retryData) return retryData;
     }
     throw new ApiError(data.message || data.error || 'Request failed', response.status, data);
   }

@@ -112,7 +112,7 @@ function showHeader(): void {
   console.log(CLEAR);
   console.log(colors.cyan + colors.bright);
   console.log('  ╔═══════════════════════════════════════════════════════╗');
-  console.log('  ║           🔐 SECURE PASSWORD MANAGER 🔐               ║');
+  console.log('  ║              SECURE PASSWORD MANAGER                  ║');
   console.log('  ╚═══════════════════════════════════════════════════════╝');
   console.log(colors.reset);
 
@@ -123,12 +123,12 @@ function showHeader(): void {
     print('  Status: Not initialized', colors.yellow);
   } else if (unlocked) {
     const session = getCurrentSession();
-    print(`  Status: 🔓 Unlocked`, colors.green);
+    print(`  Status: Unlocked`, colors.green);
     if (session) {
       print(`  Credentials: ${vaultStorage.getCredentialCount()}`, colors.dim);
     }
   } else {
-    print('  Status: 🔒 Locked', colors.red);
+    print('  Status: Locked', colors.red);
   }
 
   console.log();

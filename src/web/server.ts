@@ -53,6 +53,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const SESSION_TIMEOUT = 60 * 60 * 1000;
 app.use(session({
   name: 'spm_session',
   secret: sessionSecret,
@@ -60,10 +61,10 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     httpOnly: true, 
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    secure: false,
+    sameSite: 'lax' as const,
     path: '/',
-    maxAge: 15 * 60 * 1000,
+    maxAge: SESSION_TIMEOUT,
   },
 }));
 

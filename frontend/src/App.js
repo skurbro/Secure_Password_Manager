@@ -236,12 +236,14 @@ function AuthScreen({ onAuth, isInitialized }) {
         if (result.csrfToken) {
           setCsrfToken(result.csrfToken);
         }
+        await new Promise(resolve => setTimeout(resolve, 300));
         onAuth();
       } else {
         const result = await authApi.login(password);
         if (result.csrfToken) {
           setCsrfToken(result.csrfToken);
         }
+        await new Promise(resolve => setTimeout(resolve, 300));
         onAuth();
       }
     } catch (err) {
@@ -339,7 +341,7 @@ AuthScreen.propTypes = {
   isInitialized: PropTypes.bool.isRequired,
 };
 
-function CredentialModal({ credential, onSave, onClose }) {
+function CredentialModal({ credential, onSave, onClose, onAuthError }) {
   const isEdit = !!credential;
   const [formData, setFormData] = useState({
     title: credential?.title || '',
@@ -364,6 +366,7 @@ function CredentialModal({ credential, onSave, onClose }) {
   const handleGeneratePassword = async () => {
     setError('');
     try {
+      await fetchCsrfToken();
       const result = await vaultApi.generatePassword({ length: 20 });
       if (result && result.data && result.data.password) {
         setFormData(prev => ({ ...prev, password: result.data.password }));
@@ -372,7 +375,12 @@ function CredentialModal({ credential, onSave, onClose }) {
         setError('Failed to generate password: invalid response');
       }
     } catch (err) {
-      setError(err.message || 'Failed to generate password');
+      console.error('Password generation error:', err.status, err.message, err);
+      if (err.status === 401 || err.status === 403) {
+        setError('Session expired. Please refresh the page and log in again.');
+      } else {
+        setError('Unable to generate password. Please enter password manually.');
+      }
     }
   };
 
@@ -394,7 +402,22 @@ function CredentialModal({ credential, onSave, onClose }) {
       }
       onSave();
     } catch (err) {
-      setError(err.message || 'Failed to save credential');
+      if (err.status === 401 || err.status === 403) {
+        try {
+          await fetchCsrfToken();
+          await new Promise(resolve => setTimeout(resolve, 300));
+          if (isEdit) {
+            await vaultApi.update(credential.id, formData);
+          } else {
+            await vaultApi.add(formData);
+          }
+          onSave();
+        } catch (retryErr) {
+          setError('Session expired. Please save your data and refresh the page to log in again.');
+        }
+      } else {
+        setError(err.message || 'Failed to save credential');
+      }
     } finally {
       setLoading(false);
     }
@@ -523,9 +546,10 @@ CredentialModal.propTypes = {
   }),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+  onAuthError: PropTypes.func,
 };
 
-function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast }) {
+function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast, onAuthError }) {
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -546,6 +570,10 @@ function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast 
       setShowPassword(true);
       setCountdown(5);
     } catch (err) {
+      if (err.status === 401 && onAuthError) {
+        onAuthError();
+        return;
+      }
       showToast('Failed to fetch password', 'error');
     } finally {
       setLoading(false);
@@ -579,6 +607,10 @@ function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast 
         navigator.clipboard.writeText('').catch(() => {});
       }, 30000);
     } catch (err) {
+      if (err.status === 401 && onAuthError) {
+        onAuthError();
+        return;
+      }
       showToast('Failed to copy password', 'error');
     }
   };
@@ -593,6 +625,10 @@ function ViewCredentialModal({ credential, onClose, onEdit, onDelete, showToast 
       showToast('Credential deleted', 'success');
       onDelete();
     } catch (err) {
+      if (err.status === 401 && onAuthError) {
+        onAuthError();
+        return;
+      }
       showToast('Failed to delete credential', 'error');
     }
   };
@@ -711,6 +747,7 @@ ViewCredentialModal.propTypes = {
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
   showToast: PropTypes.func.isRequired,
+  onAuthError: PropTypes.func,
 };
 
 function Dashboard({ onLogout }) {
@@ -721,6 +758,7 @@ function Dashboard({ onLogout }) {
   const [selectedCredential, setSelectedCredential] = useState(null);
   const [editCredential, setEditCredential] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const isInitialLoadRef = React.useRef(true);
 
   const showToast = useCallback((message, type = 'success') => {
     const id = Date.now();
@@ -731,23 +769,37 @@ function Dashboard({ onLogout }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const loadCredentials = useCallback(async () => {
+  const loadCredentials = useCallback(async (retryCount = 0) => {
     try {
       const result = await vaultApi.list();
       setCredentials(Array.isArray(result.data) ? result.data : []);
+      isInitialLoadRef.current = false;
+      setLoading(false);
     } catch (err) {
       if (err.status === 401 || err.status === 403) {
         setCredentials([]);
+        if (isInitialLoadRef.current && retryCount < 5) {
+          setTimeout(() => {
+            loadCredentials(retryCount + 1);
+          }, 300 * (retryCount + 1));
+        } else if (!isInitialLoadRef.current) {
+          onLogout();
+        } else {
+          isInitialLoadRef.current = false;
+          setLoading(false);
+        }
       } else {
         showToast('Failed to load credentials', 'error');
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, onLogout]);
 
   useEffect(() => {
-    loadCredentials();
+    const timer = setTimeout(() => {
+      loadCredentials();
+    }, 800);
+    return () => clearTimeout(timer);
   }, [loadCredentials]);
 
   const handleLogout = async () => {
@@ -879,6 +931,7 @@ function Dashboard({ onLogout }) {
         <CredentialModal
           onSave={handleSaveCredential}
           onClose={() => setShowAddModal(false)}
+          onAuthError={onLogout}
         />
       )}
 
@@ -887,6 +940,7 @@ function Dashboard({ onLogout }) {
           credential={editCredential}
           onSave={handleSaveCredential}
           onClose={() => setEditCredential(null)}
+          onAuthError={onLogout}
         />
       )}
 
@@ -899,6 +953,7 @@ function Dashboard({ onLogout }) {
           }}
           onDelete={handleDeleteCredential}
           showToast={showToast}
+          onAuthError={onLogout}
         />
       )}
 
