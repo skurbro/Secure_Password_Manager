@@ -10,6 +10,8 @@ All data is encrypted locally using AES-256-GCM, with Argon2id master-password h
 
 # Key Features
 
+<img src="1.jpeg" alt="Sponge Bob" width="400px">
+
 ### Security by Design
 - AES-256-GCM encryption for every field  
 - Argon2id hashing for master password  
