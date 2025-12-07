@@ -38,7 +38,7 @@ export const rateLimitConfig = {
 
 export const authRateLimitConfig = {
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,  // Увеличено для разработки (в продакшене должно быть 5)
   message: { error: 'Too many login attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

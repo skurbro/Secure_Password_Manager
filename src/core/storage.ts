@@ -118,16 +118,26 @@ class VaultStorage {
       CREATE TABLE IF NOT EXISTS credentials (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
-        url TEXT DEFAULT '',
+        url TEXT NOT NULL,
         username TEXT NOT NULL,
         encryptedPassword TEXT NOT NULL,
         iv TEXT NOT NULL,
         authTag TEXT NOT NULL,
-        notes TEXT DEFAULT '',
-        category TEXT DEFAULT 'General',
+        notes TEXT NOT NULL,
+        category TEXT NOT NULL,
         ownerId TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        title_iv TEXT,
+        title_tag TEXT,
+        url_iv TEXT,
+        url_tag TEXT,
+        username_iv TEXT,
+        username_tag TEXT,
+        notes_iv TEXT,
+        notes_tag TEXT,
+        category_iv TEXT,
+        category_tag TEXT
       )
     `);
 
@@ -141,6 +151,50 @@ class VaultStorage {
       ON credentials(category, ownerId)
     `);
 
+    const columns = this.db.exec(`PRAGMA table_info(credentials)`)[0]?.values?.map(v => v[1]) || [];
+    const required = [
+      'title_iv','title_tag','url_iv','url_tag','username_iv','username_tag','notes_iv','notes_tag','category_iv','category_tag'
+    ];
+    for (const col of required) {
+      if (!columns.includes(col)) {
+        this.db.run(`ALTER TABLE credentials ADD COLUMN ${col} TEXT`);
+      }
+    }
+
+    try {
+      const session = getCurrentSession();
+      if (session) {
+        const result = this.db.exec(`SELECT * FROM credentials`);
+        if (result.length > 0) {
+          const columns = result[0].columns;
+          for (const values of result[0].values) {
+            const row = rowToObject(columns, values);
+            if (!row.title_iv || !row.title_tag) {
+              const encTitle = encryptData(stringToSecureBuffer(row.title as string), session.derivedKey);
+              const encUrl = encryptData(stringToSecureBuffer(row.url as string), session.derivedKey);
+              const encUsername = encryptData(stringToSecureBuffer(row.username as string), session.derivedKey);
+              const encNotes = encryptData(stringToSecureBuffer(row.notes as string), session.derivedKey);
+              const encCategory = encryptData(stringToSecureBuffer(row.category as string), session.derivedKey);
+              this.db.run(`UPDATE credentials SET
+                title = ?, title_iv = ?, title_tag = ?,
+                url = ?, url_iv = ?, url_tag = ?,
+                username = ?, username_iv = ?, username_tag = ?,
+                notes = ?, notes_iv = ?, notes_tag = ?,
+                category = ?, category_iv = ?, category_tag = ?
+                WHERE id = ?
+              `,[
+                encTitle.ciphertext, encTitle.iv, encTitle.authTag,
+                encUrl.ciphertext, encUrl.iv, encUrl.authTag,
+                encUsername.ciphertext, encUsername.iv, encUsername.authTag,
+                encNotes.ciphertext, encNotes.iv, encNotes.authTag,
+                encCategory.ciphertext, encCategory.iv, encCategory.authTag,
+                row.id
+              ]);
+            }
+          }
+        }
+      }
+    } catch {}
     this.saveDatabase();
     this.initialized = true;
   }
@@ -198,47 +252,53 @@ class VaultStorage {
       throw new Error('Password is required');
     }
 
+    const titleBuffer = stringToSecureBuffer(input.title.trim());
+    const urlBuffer = stringToSecureBuffer(input.url?.trim() || '');
+    const usernameBuffer = stringToSecureBuffer(input.username.trim());
     const passwordBuffer = stringToSecureBuffer(input.password);
+    const notesBuffer = stringToSecureBuffer(input.notes?.trim() || '');
+    const categoryBuffer = stringToSecureBuffer(input.category?.trim() || 'General');
 
     try {
-      const encrypted = encryptData(passwordBuffer, session.derivedKey);
+      const encTitle = encryptData(titleBuffer, session.derivedKey);
+      const encUrl = encryptData(urlBuffer, session.derivedKey);
+      const encUsername = encryptData(usernameBuffer, session.derivedKey);
+      const encPassword = encryptData(passwordBuffer, session.derivedKey);
+      const encNotes = encryptData(notesBuffer, session.derivedKey);
+      const encCategory = encryptData(categoryBuffer, session.derivedKey);
 
       const id = uuidv4();
       const now = new Date().toISOString();
 
-      const credential: EncryptedCredential = {
-        id,
-        title: input.title.trim(),
-        url: input.url?.trim() || '',
-        username: input.username.trim(),
-        encryptedPassword: encrypted.ciphertext,
-        iv: encrypted.iv,
-        authTag: encrypted.authTag,
-        notes: input.notes?.trim() || '',
-        category: input.category?.trim() || 'General',
-        ownerId: session.userId,
-        createdAt: now,
-        updatedAt: now,
-      };
-
       this.db!.run(`
         INSERT INTO credentials (
           id, title, url, username, encryptedPassword, iv, authTag,
-          notes, category, ownerId, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          notes, category, ownerId, createdAt, updatedAt,
+          title_iv, title_tag, url_iv, url_tag, username_iv, username_tag, notes_iv, notes_tag, category_iv, category_tag
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        credential.id,
-        credential.title,
-        credential.url,
-        credential.username,
-        credential.encryptedPassword,
-        credential.iv,
-        credential.authTag,
-        credential.notes,
-        credential.category,
-        credential.ownerId,
-        credential.createdAt,
-        credential.updatedAt,
+        id,
+        encTitle.ciphertext,
+        encUrl.ciphertext,
+        encUsername.ciphertext,
+        encPassword.ciphertext,
+        encPassword.iv,
+        encPassword.authTag,
+        encNotes.ciphertext,
+        encCategory.ciphertext,
+        session.userId,
+        now,
+        now,
+        encTitle.iv,
+        encTitle.authTag,
+        encUrl.iv,
+        encUrl.authTag,
+        encUsername.iv,
+        encUsername.authTag,
+        encNotes.iv,
+        encNotes.authTag,
+        encCategory.iv,
+        encCategory.authTag
       ]);
 
       this.saveDatabase();
@@ -249,20 +309,25 @@ class VaultStorage {
         sessionId: session.sessionId,
         outcome: Outcome.SUCCESS,
         message: 'Credential added',
-        metadata: { credentialId: id, title: credential.title },
+        metadata: { credentialId: id },
       });
 
       return {
         id,
-        title: credential.title,
-        url: credential.url,
-        username: credential.username,
-        category: credential.category,
-        createdAt: credential.createdAt,
-        updatedAt: credential.updatedAt,
+        title: input.title.trim(),
+        url: input.url?.trim() || '',
+        username: input.username.trim(),
+        category: input.category?.trim() || 'General',
+        createdAt: now,
+        updatedAt: now,
       };
     } finally {
+      secureWipe(titleBuffer);
+      secureWipe(urlBuffer);
+      secureWipe(usernameBuffer);
       secureWipe(passwordBuffer);
+      secureWipe(notesBuffer);
+      secureWipe(categoryBuffer);
     }
   }
 
@@ -282,16 +347,12 @@ class VaultStorage {
     const values = result[0].values[0];
     const row = rowToObject(columns, values);
 
-    const encrypted: EncryptedData = {
-      ciphertext: row.encryptedPassword as string,
-      iv: row.iv as string,
-      authTag: row.authTag as string,
-    };
-
-    const decryptedPassword = decryptData(encrypted, session.derivedKey);
-    const password = decryptedPassword.toString('utf8');
-
-    secureWipe(decryptedPassword);
+    const decTitle = decryptData({ciphertext: row.title as string, iv: row.title_iv as string, authTag: row.title_tag as string}, session.derivedKey).toString('utf8');
+    const decUrl = decryptData({ciphertext: row.url as string, iv: row.url_iv as string, authTag: row.url_tag as string}, session.derivedKey).toString('utf8');
+    const decUsername = decryptData({ciphertext: row.username as string, iv: row.username_iv as string, authTag: row.username_tag as string}, session.derivedKey).toString('utf8');
+    const decPassword = decryptData({ciphertext: row.encryptedPassword as string, iv: row.iv as string, authTag: row.authTag as string}, session.derivedKey).toString('utf8');
+    const decNotes = decryptData({ciphertext: row.notes as string, iv: row.notes_iv as string, authTag: row.notes_tag as string}, session.derivedKey).toString('utf8');
+    const decCategory = decryptData({ciphertext: row.category as string, iv: row.category_iv as string, authTag: row.category_tag as string}, session.derivedKey).toString('utf8');
 
     logSecurityEvent({
       event: SecurityEvent.RECORD_VIEWED,
@@ -304,12 +365,12 @@ class VaultStorage {
 
     return {
       id: row.id as string,
-      title: row.title as string,
-      url: row.url as string,
-      username: row.username as string,
-      password,
-      notes: row.notes as string,
-      category: row.category as string,
+      title: decTitle,
+      url: decUrl,
+      username: decUsername,
+      password: decPassword,
+      notes: decNotes,
+      category: decCategory,
       ownerId: row.ownerId as string,
       createdAt: row.createdAt as string,
       updatedAt: row.updatedAt as string,
@@ -321,7 +382,7 @@ class VaultStorage {
     const session = this.getAuthenticatedSession();
 
     const result = this.db!.exec(`
-      SELECT id, title, url, username, category, createdAt, updatedAt
+      SELECT id, title, title_iv, title_tag, url, url_iv, url_tag, username, username_iv, username_tag, category, category_iv, category_tag, createdAt, updatedAt
       FROM credentials
       WHERE ownerId = ?
       ORDER BY updatedAt DESC
@@ -334,7 +395,24 @@ class VaultStorage {
     const columns = result[0].columns;
     return result[0].values.map((values: SqlValue[]) => {
       const row = rowToObject(columns, values);
-      return row as unknown as CredentialListItem;
+      try {
+        const decTitle = decryptData({ciphertext: row.title as string, iv: row.title_iv as string, authTag: row.title_tag as string}, session.derivedKey).toString('utf8');
+        const decUrl = decryptData({ciphertext: row.url as string, iv: row.url_iv as string, authTag: row.url_tag as string}, session.derivedKey).toString('utf8');
+        const decUsername = decryptData({ciphertext: row.username as string, iv: row.username_iv as string, authTag: row.username_tag as string}, session.derivedKey).toString('utf8');
+        const decCategory = decryptData({ciphertext: row.category as string, iv: row.category_iv as string, authTag: row.category_tag as string}, session.derivedKey).toString('utf8');
+        return {
+          id: row.id as string,
+          title: decTitle,
+          url: decUrl,
+          username: decUsername,
+          category: decCategory,
+          createdAt: row.createdAt as string,
+          updatedAt: row.updatedAt as string,
+        };
+      } catch (error) {
+        logError('Failed to decrypt credential in list', error as Error);
+        return row as unknown as CredentialListItem;
+      }
     });
   }
 
@@ -343,11 +421,11 @@ class VaultStorage {
     const session = this.getAuthenticatedSession();
 
     const result = this.db!.exec(`
-      SELECT id, title, url, username, category, createdAt, updatedAt
+      SELECT id, title, title_iv, title_tag, url, url_iv, url_tag, username, username_iv, username_tag, category, category_iv, category_tag, createdAt, updatedAt
       FROM credentials
-      WHERE ownerId = ? AND category = ?
+      WHERE ownerId = ?
       ORDER BY updatedAt DESC
-    `, [session.userId, category]);
+    `, [session.userId]);
 
     if (result.length === 0) {
       return [];
@@ -356,36 +434,77 @@ class VaultStorage {
     const columns = result[0].columns;
     return result[0].values.map((values: SqlValue[]) => {
       const row = rowToObject(columns, values);
-      return row as unknown as CredentialListItem;
-    });
+      try {
+        const decTitle = decryptData({ciphertext: row.title as string, iv: row.title_iv as string, authTag: row.title_tag as string}, session.derivedKey).toString('utf8');
+        const decUrl = decryptData({ciphertext: row.url as string, iv: row.url_iv as string, authTag: row.url_tag as string}, session.derivedKey).toString('utf8');
+        const decUsername = decryptData({ciphertext: row.username as string, iv: row.username_iv as string, authTag: row.username_tag as string}, session.derivedKey).toString('utf8');
+        const decCategory = decryptData({ciphertext: row.category as string, iv: row.category_iv as string, authTag: row.category_tag as string}, session.derivedKey).toString('utf8');
+        
+        if (decCategory.toLowerCase() === category.toLowerCase()) {
+          return {
+            id: row.id as string,
+            title: decTitle,
+            url: decUrl,
+            username: decUsername,
+            category: decCategory,
+            createdAt: row.createdAt as string,
+            updatedAt: row.updatedAt as string,
+          };
+        }
+        return null;
+      } catch (error) {
+        logError('Failed to decrypt credential in category list', error as Error);
+        return null;
+      }
+    }).filter(Boolean) as CredentialListItem[];
   }
 
   searchCredentials(query: string): CredentialListItem[] {
     this.ensureInitialized();
     const session = this.getAuthenticatedSession();
 
-    const sanitizedQuery = `%${query.replace(/[%_]/g, '\\$&')}%`;
-
     const result = this.db!.exec(`
-      SELECT id, title, url, username, category, createdAt, updatedAt
+      SELECT id, title, title_iv, title_tag, url, url_iv, url_tag, username, username_iv, username_tag, category, category_iv, category_tag, createdAt, updatedAt
       FROM credentials
-      WHERE ownerId = ? AND (
-        title LIKE ? ESCAPE '\\' OR
-        username LIKE ? ESCAPE '\\' OR
-        url LIKE ? ESCAPE '\\'
-      )
+      WHERE ownerId = ?
       ORDER BY updatedAt DESC
-    `, [session.userId, sanitizedQuery, sanitizedQuery, sanitizedQuery]);
+    `, [session.userId]);
 
     if (result.length === 0) {
       return [];
     }
 
     const columns = result[0].columns;
-    return result[0].values.map((values: SqlValue[]) => {
-      const row = rowToObject(columns, values);
-      return row as unknown as CredentialListItem;
-    });
+    const lowerQuery = query.toLowerCase();
+    return result[0].values
+      .map((values: SqlValue[]) => {
+        const row = rowToObject(columns, values);
+        try {
+          const decTitle = decryptData({ciphertext: row.title as string, iv: row.title_iv as string, authTag: row.title_tag as string}, session.derivedKey).toString('utf8');
+          const decUrl = decryptData({ciphertext: row.url as string, iv: row.url_iv as string, authTag: row.url_tag as string}, session.derivedKey).toString('utf8');
+          const decUsername = decryptData({ciphertext: row.username as string, iv: row.username_iv as string, authTag: row.username_tag as string}, session.derivedKey).toString('utf8');
+          const decCategory = decryptData({ciphertext: row.category as string, iv: row.category_iv as string, authTag: row.category_tag as string}, session.derivedKey).toString('utf8');
+          return {
+            id: row.id as string,
+            title: decTitle,
+            url: decUrl,
+            username: decUsername,
+            category: decCategory,
+            createdAt: row.createdAt as string,
+            updatedAt: row.updatedAt as string,
+          };
+        } catch (error) {
+          logError('Failed to decrypt credential in search', error as Error);
+          return null;
+        }
+      })
+      .filter((cred): cred is CredentialListItem => 
+        cred !== null && (
+          cred.title.toLowerCase().includes(lowerQuery) ||
+          cred.username.toLowerCase().includes(lowerQuery) ||
+          cred.url.toLowerCase().includes(lowerQuery)
+        )
+      );
   }
 
   updateCredential(id: string, input: UpdateCredentialInput): CredentialListItem | null {

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { vaultStorage } from '../../core/storage';
 import { generatePassword } from '../../core/crypto';
-import { logSecurityEvent, SecurityEvent, Outcome } from '../../core/logger';
+import { logSecurityEvent, SecurityEvent, Outcome, logError } from '../../core/logger';
 
 const router = Router();
 
@@ -124,7 +124,17 @@ const UPDATE_SCHEMA = {
 
 router.get('/list', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    logError('DEBUG: GET /list started', new Error('Starting list credentials'), {
+      userId: req.userId,
+      method: 'GET /list'
+    });
+
     const credentials = vaultStorage.listCredentials();
+
+    logError('DEBUG: Credentials listed', new Error('List successful'), {
+      userId: req.userId,
+      count: credentials.length
+    });
 
     res.json({
       success: true,
@@ -132,6 +142,14 @@ router.get('/list', async (req: AuthenticatedRequest, res: Response) => {
       count: credentials.length,
     });
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logError('ERROR in GET /list', err, {
+      userId: req.userId,
+      method: 'GET /list',
+      errorMessage: err.message,
+      errorStack: err.stack
+    });
+
     res.status(500).json({
       error: 'Failed to list credentials',
       message: 'An unexpected error occurred',
@@ -227,11 +245,26 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 router.post('/add', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    logError('DEBUG: POST /add started', new Error('Starting add credential'), {
+      userId: req.userId,
+      method: 'POST /add',
+      bodyKeys: Object.keys(req.body)
+    });
+
     const validation = validateFields(req.body, CREDENTIAL_SCHEMA);
     if (!validation.valid) {
+      logError('DEBUG: Validation failed', new Error(validation.error || 'Unknown validation error'), {
+        userId: req.userId,
+        validationError: validation.error
+      });
       res.status(400).json({ error: 'Invalid input', message: validation.error });
       return;
     }
+
+    logError('DEBUG: Validation passed', new Error('Validation OK'), {
+      userId: req.userId,
+      dataKeys: Object.keys(validation.data)
+    });
 
     const credential = vaultStorage.addCredential({
       title: validation.data.title,
@@ -240,6 +273,11 @@ router.post('/add', async (req: AuthenticatedRequest, res: Response) => {
       url: validation.data.url || '',
       category: validation.data.category || 'General',
       notes: validation.data.notes || '',
+    });
+
+    logError('DEBUG: Credential added to storage', new Error('Add successful'), {
+      userId: req.userId,
+      credentialId: credential.id
     });
 
     logSecurityEvent({
@@ -257,6 +295,26 @@ router.post('/add', async (req: AuthenticatedRequest, res: Response) => {
       data: credential,
     });
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logError('ERROR in POST /add', err, {
+      userId: req.userId,
+      method: 'POST /add',
+      errorMessage: err.message,
+      errorStack: err.stack,
+      requestBody: {
+        title: req.body.title ? req.body.title.substring(0, 50) : undefined,
+        username: req.body.username ? req.body.username.substring(0, 50) : undefined,
+      }
+    });
+
+    logSecurityEvent({
+      event: SecurityEvent.RECORD_ADDED,
+      userId: req.userId || 'unknown',
+      sessionId: req.sessionID,
+      outcome: Outcome.ERROR,
+      message: `Failed to add credential: ${err.message}`,
+    });
+
     res.status(500).json({
       error: 'Failed to add credential',
       message: 'An unexpected error occurred',
@@ -268,6 +326,12 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = req.params.id;
 
+    logError('DEBUG: PUT /:id started', new Error('Starting update credential'), {
+      userId: req.userId,
+      method: 'PUT',
+      credentialId: id
+    });
+
     if (!id) {
       res.status(400).json({
         error: 'Invalid input',
@@ -278,6 +342,10 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
     const validation = validateFields(req.body, UPDATE_SCHEMA);
     if (!validation.valid) {
+      logError('DEBUG: Validation failed in PUT', new Error(validation.error || 'Unknown'), {
+        userId: req.userId,
+        validationError: validation.error
+      });
       res.status(400).json({ error: 'Invalid input', message: validation.error });
       return;
     }
@@ -314,6 +382,15 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       data: updated,
     });
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logError('ERROR in PUT /:id', err, {
+      userId: req.userId,
+      method: 'PUT /:id',
+      credentialId: req.params.id,
+      errorMessage: err.message,
+      errorStack: err.stack
+    });
+
     res.status(500).json({
       error: 'Failed to update credential',
       message: 'An unexpected error occurred',
@@ -324,6 +401,12 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = req.params.id;
+
+    logError('DEBUG: DELETE /:id started', new Error('Starting delete credential'), {
+      userId: req.userId,
+      method: 'DELETE',
+      credentialId: id
+    });
 
     if (!id) {
       res.status(400).json({
@@ -357,6 +440,15 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
       message: 'Credential deleted successfully',
     });
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logError('ERROR in DELETE /:id', err, {
+      userId: req.userId,
+      method: 'DELETE /:id',
+      credentialId: req.params.id,
+      errorMessage: err.message,
+      errorStack: err.stack
+    });
+
     res.status(500).json({
       error: 'Failed to delete credential',
       message: 'An unexpected error occurred',

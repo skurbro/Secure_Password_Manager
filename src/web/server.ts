@@ -1,4 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -9,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { vaultRouter } from './routes/vault';
 import { csrfProtection, csrfErrorHandler, addCsrfTokenToResponse, createSignedCsrfToken } from './middleware/csrf';
 import { securityHeaders } from './middleware/security';
+import { rateLimitConfig, authRateLimitConfig } from './middleware/security';
 import { logInfo, logError } from '../core/logger';
 import { vaultStorage } from '../core/storage';
 
@@ -22,12 +24,16 @@ declare module 'express-session' {
 }
 
 const app: Express = express();
+// Rate limiting middleware
+const globalLimiter = rateLimit(rateLimitConfig);
+const authLimiter = rateLimit(authRateLimitConfig);
 const PORT = Number(process.env.PORT) || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction) app.set('trust proxy', 1);
 
 app.use(securityHeaders);
+app.use(globalLimiter);
 
 const allowedOrigins = [process.env.FRONTEND_URL || '', 'http://localhost:3000', 'http://localhost:8080'].filter(Boolean);
 const corsOptions: cors.CorsOptions = {
@@ -110,6 +116,7 @@ app.get('/api/debug-session', (req: Request, res: Response) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter);
 app.use('/api/vault', csrfProtection);
 app.use('/api/vault', vaultRouter);
 
